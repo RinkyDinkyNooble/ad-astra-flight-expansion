@@ -1,0 +1,38 @@
+modLoader="javafml"
+loaderVersion="${loader_version_range}"
+license="${mod_license}"
+issueTrackerURL="${mod_issues}"
+
+[[mods]]
+modId="${mod_id}"
+version="${mod_version}"
+displayName="${mod_name}"
+displayURL="${mod_url}"
+logoFile="${mod_id}.png"
+logoBlur=false
+authors="${mod_authors}"
+credits="Ad Astra is made by Terrarium (Alex Nijjar and contributors). This add-on reuses Ad Astra's own jet suit flight for other armour. MixinExtras (MIT) is made by LlamaLad7."
+# Needed on both sides: the client moves the player, the server keeps fall distance, gliding and durability.
+displayTest="MATCH_VERSION"
+description='''${mod_description}'''
+
+[[dependencies.${mod_id}]]
+    modId="forge"
+    mandatory=true
+    versionRange="${forge_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="minecraft"
+    mandatory=true
+    versionRange="${minecraft_version_range}"
+    ordering="NONE"
+    side="BOTH"
+
+[[dependencies.${mod_id}]]
+    modId="ad_astra"
+    mandatory=true
+    versionRange="${ad_astra_version_range}"
+    ordering="AFTER"
+    side="BOTH"

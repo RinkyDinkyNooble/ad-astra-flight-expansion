@@ -1,0 +1,20 @@
+{
+  "required": false,
+  "minVersion": "0.8.5",
+  "package": "com.rinkynooble.adastraflightexpansion.mixin",
+  "plugin": "com.rinkynooble.adastraflightexpansion.MixinPlugin",
+  "compatibilityLevel": "JAVA_17",
+  "refmap": "adastraflightexpansion.refmap.json",
+  "mixins": [
+    "InventoryMixin",
+    "JetSuitItemInvoker",
+    "LivingEntityMixin",
+    "PlayerMixin"
+  ],
+  "client": [
+    "client.LocalPlayerMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

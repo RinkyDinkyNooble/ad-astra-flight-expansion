@@ -1,0 +1,135 @@
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+
+version = mod_version
+group = mod_group_id
+
+base {
+    archivesName = mod_id
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
+
+// Dev-only checks (src/verify): a test tag that puts vanilla iron armour in Ad Astra's jet suit tag,
+// and the server checks run by `gradlew runServer -Pverify`. Loaded in the dev runs only, never shipped.
+sourceSets {
+    verify {
+        compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+        runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+    }
+}
+
+// MixinExtras (MIT, by LlamaLad7) is packed inside the jar with Forge's Jar-in-Jar, since Forge 47 doesn't ship it.
+jarJar.enable()
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'info'
+            // Ad Astra's own mixins use production names, so the dev runs remap them.
+            property 'mixin.env.remapRefMap', 'true'
+            property 'mixin.env.refMapRemappingFile', "${projectDir}/build/createSrgToMcp/output.srg"
+            property "${mod_id}.verify", project.hasProperty('verify') ? 'true' : 'false'
+            mods {
+                "${mod_id}" {
+                    source sourceSets.main
+                    source sourceSets.verify
+                }
+            }
+        }
+        client {
+        }
+        server {
+            // Its own folder, so the dev client and server can run at the same time (connect to localhost).
+            workingDirectory project.file('run/server')
+            args '--nogui'
+        }
+    }
+}
+
+mixin {
+    add sourceSets.main, "${mod_id}.refmap.json"
+    config "${mod_id}.mixins.json"
+}
+
+repositories {
+    // The Ad Astra jars are read from libs/ (see README).
+    flatDir { dir 'libs' }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    compileOnly(annotationProcessor("io.github.llamalad7:mixinextras-common:${mixinextras_version}"))
+    implementation(jarJar("io.github.llamalad7:mixinextras-forge:${mixinextras_version}")) {
+        jarJar.ranged(it, "[${mixinextras_version},)")
+    }
+
+    // Compiled against, and loaded in the dev runs. Never packed into this mod's jar.
+    implementation fg.deobf("local:ad_astra-forge-1.20.1:${ad_astra_version}")
+    implementation fg.deobf("local:botarium-forge-1.20.1:${botarium_version}")
+    implementation fg.deobf("local:resourcefullib-forge-1.20.1:${resourcefullib_version}")
+    implementation fg.deobf("local:resourcefulconfig-forge-1.20.1:${resourcefulconfig_version}")
+}
+
+tasks.named('processResources', ProcessResources).configure {
+    var replaceProperties = [
+            minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
+            forge_version: forge_version, forge_version_range: forge_version_range,
+            loader_version_range: loader_version_range,
+            ad_astra_version_range: ad_astra_version_range,
+            mod_id: mod_id, mod_name: mod_name, mod_license: mod_license,
+            mod_version: mod_version, mod_authors: mod_authors, mod_description: mod_description,
+            mod_url: mod_url, mod_issues: mod_issues,
+    ]
+    inputs.properties replaceProperties
+    filesMatching(['META-INF/mods.toml']) {
+        expand replaceProperties + [project: project]
+    }
+}
+
+// The released jar is the Jar-in-Jar one (with MixinExtras inside); the plain jar is kept as "-slim".
+tasks.named('jar', Jar).configure {
+    archiveClassifier = 'slim'
+}
+tasks.named('jarJar').configure {
+    archiveClassifier = ''
+}
+reobf {
+    jarJar {}
+}
+tasks.withType(Jar).matching { it.name in ['jar', 'jarJar'] }.configureEach {
+    manifest {
+        attributes([
+                'Specification-Title'     : mod_id,
+                'Specification-Vendor'    : mod_authors,
+                'Specification-Version'   : '1',
+                'Implementation-Title'    : project.name,
+                'Implementation-Version'  : project.version,
+                'Implementation-Vendor'   : mod_authors,
+                'MixinConfigs'            : "${mod_id}.mixins.json",
+        ])
+    }
+    // Ship the license inside the jar too.
+    from('LICENSE') {
+        rename { "LICENSE_${mod_id}" }
+    }
+}
+tasks.named('jar').configure { finalizedBy 'reobfJar' }
+tasks.named('jarJar').configure { finalizedBy 'reobfJarJar' }
+tasks.named('build').configure { dependsOn 'jarJar' }
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
